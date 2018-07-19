@@ -10,9 +10,10 @@ import java.util.ArrayDeque;
 import java.util.Random;
 import java.util.Map;
 import java.util.HashMap;
-import java.awt.event.KeyListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 
 /**
  *
@@ -80,8 +81,9 @@ public class CPU {
             memory[i] = sprites[i];
     }
     
-    public void call() {
-        jump(opcode & 0xFFF);
+    public void call(int addr) {
+        stack.push(PC);
+        jump(addr);
     }
     
     public void disp_clear() {
@@ -102,19 +104,23 @@ public class CPU {
         switch(instr) {
             case 3:
                 if(V[X] == (opcode & 0xFF))
-                    PC += 1;               
+                    PC += 2;               
                 break;
             case 4:
                 if(V[X] != (opcode & 0xFF))
-                    PC += 1;
+                    PC += 2;
                 break;
             case 5:
                 if(V[X] == V[Y])
-                    PC += 1;
+                    PC += 2;
                 break;
             case 9:
                 if(V[X] != V[Y])
-                    PC += 1;
+                    PC += 2;
+                break;
+            case 0x9E:
+                break;
+            case 0xA1:
                 break;
         }
     }
@@ -239,6 +245,156 @@ public class CPU {
         for(int i = I; i < I+X; i++) {
             V[i] = memory[i];
         }
+    }
+    
+    public void powerup(String gamepath) {
+        try {
+            BufferedInputStream game = new BufferedInputStream(new FileInputStream(gamepath));
+            
+            int addr = 0;
+            
+            try {
+                while((memory[addr] = game.read()) != -1) {
+                    addr++;
+                }
+                memory[addr+1] = 0;
+            }
+            catch(IOException e) {}
+        }
+        catch (FileNotFoundException e) {
+            System.exit(-1);
+        }
+    }
+    
+    public void fetch() {
+        opcode = (memory[PC] << 8) & memory[PC+1];
+        PC += 2;
+    }
+    
+    public void decode() {
+        switch((opcode & 0x80) >> 7) {
+            case 0:
+                switch(opcode & 7) {
+                    case(0x0E0):
+                        disp_clear();
+                        break;
+                    case(0x0EE):
+                        ret();
+                        break;
+                    default:
+                        call(opcode & 7);
+                }
+                break;
+            case 1:
+                jump(opcode & 7);
+                break;
+            case 2:
+                call(opcode & 7);
+                break;
+            case 3:
+                skip_next_if((char)3);
+                break;
+            case 4:
+                skip_next_if((char)4);
+                break;
+            case 5:
+                skip_next_if((char)5);
+                break;
+            case 6:
+                assign_Vx_const();
+                break;
+            case 7:
+                add_Vx_const();
+                break;
+            case 8:
+                switch(opcode & 1) {
+                    case 0:
+                        assign_Vx_Vy();
+                        break;
+                    case 1:
+                        or();
+                        break;
+                    case 2:
+                        and();
+                        break;
+                    case 3:
+                        xor();
+                        break;
+                    case 4:
+                        add_Vx_Vy();
+                        break;
+                    case 5:
+                        sub(0);
+                        break;
+                    case 6:
+                        shift_right();
+                        break;
+                    case 7:
+                        sub(1);
+                        break;
+                    case 0xE:
+                        shift_left();
+                        break;
+                }
+                break;
+            case 9:
+                skip_next_if((char)9);
+                break;
+            case 0xA:
+                set_I();
+                break;
+            case 0xB:
+                jump((opcode & 0xFFF) + V[0]);
+                break;
+            case 0xC:
+                rand();
+                break;
+            case 0xD:
+                //draw
+                break;
+            case 0xE:
+                switch(opcode & 0xFF) {
+                    case 0x9E:
+                        skip_next_if((char)0x9E);
+                        break;
+                    case 0xA1:
+                        skip_next_if((char)0xA1);
+                        break;
+                }
+                break;
+            case 0xF:
+                switch(opcode & 0xFF) {
+                    case 0x07:
+                        set_Vx_delay();
+                        break;
+                    case 0x0A:
+                        set_Vx_key();
+                        break;
+                    case 0x15:
+                        set_delay_Vx();
+                        break;
+                    case 0x18:
+                        set_sound_Vx();
+                        break;
+                    case 0x1E:
+                        this.add_I_Vx();
+                        break;
+                    case 0x29:
+                        set_I_sprite_addr();
+                        break;
+                    case 0x33:
+                        set_bcd_Vx();
+                        break;
+                    case 0x55:
+                        reg_dump();
+                        break;
+                    case 0x65:
+                        reg_load();
+                        break;
+                }
+        }
+        
+        PC += 2;
     }
     
     //Methods for testing

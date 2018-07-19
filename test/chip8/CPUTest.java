@@ -83,18 +83,6 @@ public class CPUTest {
     }
 
     /**
-     * Test of set_I_sprite_addr method, of class CPU.
-     */
-    @Test
-    public void testSet_I_sprite_addr() {
-        System.out.println("set_I_sprite_addr");
-        CPU instance = new CPU();
-        instance.set_I_sprite_addr();
-        // TODO review the generated test code and remove the default call to fail.
-        fail("The test case is a prototype.");
-    }
-
-    /**
      * Test of set_bcd_Vx method, of class CPU.
      */
     @Test
