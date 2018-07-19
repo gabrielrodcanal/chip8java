@@ -29,8 +29,10 @@ public class CPU {
     private Deque<Integer> stack;
     private int delay_timer;
     private int sound_timer;
-    private int screen[];
-    private Map<String,String> key_map;
+    private int[] gfx;
+    private Map<String,Integer> key_map; //real keys to chip8 keys
+    private Map<Integer,Boolean> pressed_key;   //chip8 keys to boolean
+    private int update_key; //used in set_Vx_key
     
     private char X, Y;
     
@@ -38,25 +40,42 @@ public class CPU {
         memory = new int[4096];
         V = new int[16];
         stack = new ArrayDeque();
-        screen = new int[64*32];
-        key_map = new HashMap<String,String>();
+        gfx = new int[64*32];
+        key_map = new HashMap<String,Integer>();
         
-        key_map.put("1","1");
-        key_map.put("2","2");
-        key_map.put("3","3");
-        key_map.put("C","4");
-        key_map.put("4","Q");
-        key_map.put("5","W");
-        key_map.put("6","E");
-        key_map.put("D","R");
-        key_map.put("7","A");
-        key_map.put("8","S");
-        key_map.put("9","D");
-        key_map.put("E","F");
-        key_map.put("A","Z");
-        key_map.put("0","X");
-        key_map.put("B","C");
-        key_map.put("F","V");
+        key_map.put("1",1);
+        key_map.put("2",2);
+        key_map.put("3",3);
+        key_map.put("4",0xC);
+        key_map.put("Q",4);
+        key_map.put("W",5);
+        key_map.put("E",6);
+        key_map.put("R",0xD);
+        key_map.put("A",7);
+        key_map.put("S",8);
+        key_map.put("D",9);
+        key_map.put("F",0xE);
+        key_map.put("Z",0xA);
+        key_map.put("X",0);
+        key_map.put("C",0xB);
+        key_map.put("V",0xF);
+        
+        pressed_key.put(1,false);
+        pressed_key.put(2,false);
+        pressed_key.put(3,false);
+        pressed_key.put(0xC,false);
+        pressed_key.put(4,false);
+        pressed_key.put(5,false);
+        pressed_key.put(6,false);
+        pressed_key.put(0xD,false);
+        pressed_key.put(7,false);
+        pressed_key.put(8,false);
+        pressed_key.put(9,false);
+        pressed_key.put(0xE,false);
+        pressed_key.put(0xA,false);
+        pressed_key.put(0,false);
+        pressed_key.put(0xB,false);
+        pressed_key.put(0xF,false);
         
         int sprites[] = {
             0xF0,0x90,0x90,0x90,0xF0,
@@ -87,7 +106,7 @@ public class CPU {
     }
     
     public void disp_clear() {
-        for(int pixel : screen) {
+        for(int pixel : gfx) {
             pixel = 0;
         }
     }
@@ -119,8 +138,12 @@ public class CPU {
                     PC += 2;
                 break;
             case 0x9E:
+                if(pressed_key.get(V[X]))
+                    PC += 2;
                 break;
             case 0xA1:
+                if(!pressed_key.get(V[X]))
+                    PC += 2;
                 break;
         }
     }
@@ -210,7 +233,8 @@ public class CPU {
     }
     
     public void set_Vx_key() {
-        
+        if(pressed_key.keySet().contains(update_key))   //does update_key belong to the chip-8 keyboard?
+            V[X] = update_key;
     }
     
     public void set_delay_Vx() {
@@ -395,6 +419,15 @@ public class CPU {
         }
         
         PC += 2;
+        pressed_key.forEach((k,v) -> v = false);
+    }
+    
+    public void update_pressed_key(String key) {
+        int chip8_key = key_map.get(key);
+        if(pressed_key.keySet().contains(chip8_key)) {  //does the key belong to the chip 8 keyboard?
+            pressed_key.put(key_map.get(key),true);
+            update_key = chip8_key;
+        }
     }
     
     //Methods for testing

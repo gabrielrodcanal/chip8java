@@ -16,6 +16,14 @@ public class Chip8 {
      */
     public static void main(String[] args) {
         CPU cpu = new CPU();
+        /* Create and display the form */
+        java.awt.EventQueue.invokeLater(new Runnable() {
+            public void run() {
+                Screen screen = new Screen(cpu);
+                screen.setVisible(true);
+            }
+        });
+        
         cpu.powerup("MAZE");
     }
     
