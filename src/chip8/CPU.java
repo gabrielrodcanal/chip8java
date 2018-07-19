@@ -20,6 +20,11 @@ import java.io.IOException;
  * @author gabriel
  */
 public class CPU {
+    private final int SCR_WIDTH = 64;
+    private final int SCR_HEIGHT = 32;
+    private final int SPRT_WIDTH = 8;
+    private final int SPRT_HEIGHT = 15;
+    
     private int opcode;
     private int PC;
     private int SP;
@@ -29,7 +34,7 @@ public class CPU {
     private Deque<Integer> stack;
     private int delay_timer;
     private int sound_timer;
-    private int[] gfx;
+    private char[] gfx;
     private Map<String,Integer> key_map; //real keys to chip8 keys
     private Map<Integer,Boolean> pressed_key;   //chip8 keys to boolean
     private int update_key; //used in set_Vx_key
@@ -40,7 +45,7 @@ public class CPU {
         memory = new int[4096];
         V = new int[16];
         stack = new ArrayDeque();
-        gfx = new int[64*32];
+        gfx = new char[(SCR_WIDTH + SPRT_WIDTH)*(SCR_HEIGHT + SPRT_HEIGHT)];
         key_map = new HashMap<String,Integer>();
         
         key_map.put("1",1);
@@ -225,7 +230,35 @@ public class CPU {
     }
     
     public void draw() {
+        V[0xF] = 0;
+        int n = opcode & 0xF;
+        int row = 0;
+        int mask = 0x80;
         
+        for(int i = I; i < n; i++) {
+            if((gfx[V[X] + row * V[Y]] ^ memory[i]) != 0)
+                V[0xF] = 1;
+            
+            for(int j = 0; j < 8; j++) {
+                gfx[V[X] + row * V[Y] + j] = (char)((memory[i] & mask) >> 7-j);
+                mask >>>= 1;
+            }
+        }
+        
+        //relocation of out of bounds pixels
+        //right zone
+        for(row = 0; row < SCR_HEIGHT; row++) {
+            for(int j = 0; j < 8; j++) {
+                gfx[row * SCR_WIDTH + j] |= gfx[row * SCR_WIDTH + SCR_WIDTH + j];
+            }            
+        }
+        
+        //down zone
+        for(row = 0; row < SPRT_HEIGHT; row++) {
+            for(int j = 0; j < SCR_WIDTH; j++) {
+                gfx[row * SCR_WIDTH + j] |= gfx[(SCR_HEIGHT + row) * SCR_WIDTH + j];
+            }
+        }
     }
     
     public void set_Vx_delay() {
