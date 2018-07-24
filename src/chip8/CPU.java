@@ -14,16 +14,20 @@ import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Timer;
+import java.lang.Runnable;
 
 /**
  *
  * @author gabriel
  */
-public class CPU {
+public class CPU implements Runnable {
     private final int SCR_WIDTH = 64;
     private final int SCR_HEIGHT = 32;
     private final int SPRT_WIDTH = 8;
     private final int SPRT_HEIGHT = 15;
+    private final int EXP_SCR_WIDTH = SCR_WIDTH + SPRT_WIDTH;
+    private final int EXP_SCR_HEIGHT = SCR_HEIGHT + SPRT_HEIGHT;
     
     private int opcode;
     private int PC;
@@ -32,12 +36,15 @@ public class CPU {
     private int V[];
     private int I;
     private Deque<Integer> stack;
-    private int delay_timer;
+    //private int delay_timer;
+    private CountDownTimer delay_timer;
     private int sound_timer;
-    private char[] gfx;
+    private int[] gfx;
     private Map<String,Integer> key_map; //real keys to chip8 keys
     private Map<Integer,Boolean> pressed_key;   //chip8 keys to boolean
     private int update_key; //used in set_Vx_key
+    private Timer clock;
+    private Screen screen;
     
     private char X, Y;
     
@@ -45,8 +52,12 @@ public class CPU {
         memory = new int[4096];
         V = new int[16];
         stack = new ArrayDeque();
-        gfx = new char[(SCR_WIDTH + SPRT_WIDTH)*(SCR_HEIGHT + SPRT_HEIGHT)];
+        //gfx = new char[(SCR_WIDTH + SPRT_WIDTH)*(SCR_HEIGHT + SPRT_HEIGHT)];
+        gfx = new int[(SCR_WIDTH + SPRT_WIDTH)*(SCR_HEIGHT + SPRT_HEIGHT)];
         key_map = new HashMap<String,Integer>();
+        pressed_key = new HashMap<Integer,Boolean>();
+        delay_timer = new CountDownTimer();
+        clock = new Timer();
         
         key_map.put("1",1);
         key_map.put("2",2);
@@ -233,36 +244,49 @@ public class CPU {
         V[0xF] = 0;
         int n = opcode & 0xF;
         int row = 0;
-        int mask = 0x80;
+        int mask;
+        int mem_val,gfx_pos;
         
-        for(int i = I; i < n; i++) {
-            if((gfx[V[X] + row * V[Y]] ^ memory[i]) != 0)
-                V[0xF] = 1;
+        for(int i = I; i < I + n; i++) {
+            mask = 0x80;
             
+            gfx_pos = V[X] + EXP_SCR_WIDTH * (V[Y] + row);
             for(int j = 0; j < 8; j++) {
-                gfx[V[X] + row * V[Y] + j] = (char)((memory[i] & mask) >> 7-j);
+                gfx_pos += 1;
+                mem_val = (memory[i] & mask) >>> 7-j;
+                
+                if(gfx[gfx_pos] == 1 && mem_val == 1)
+                    V[0xF] = 1;
+                
+                gfx[gfx_pos] ^= mem_val;
                 mask >>>= 1;
             }
+            row++;
         }
         
         //relocation of out of bounds pixels
         //right zone
+        /*
         for(row = 0; row < SCR_HEIGHT; row++) {
             for(int j = 0; j < 8; j++) {
                 gfx[row * SCR_WIDTH + j] |= gfx[row * SCR_WIDTH + SCR_WIDTH + j];
             }            
         }
+        */
         
         //down zone
+        /*
         for(row = 0; row < SPRT_HEIGHT; row++) {
             for(int j = 0; j < SCR_WIDTH; j++) {
                 gfx[row * SCR_WIDTH + j] |= gfx[(SCR_HEIGHT + row) * SCR_WIDTH + j];
             }
         }
+        */
+        screen.paint_screen();
     }
     
     public void set_Vx_delay() {
-        V[X] = delay_timer;
+        V[X] = (int)delay_timer.getTime();
     }
     
     public void set_Vx_key() {
@@ -271,7 +295,7 @@ public class CPU {
     }
     
     public void set_delay_Vx() {
-        delay_timer = V[X];
+        delay_timer.setTime((long)V[X]);
     }
     
     public void set_sound_Vx() {
@@ -293,14 +317,18 @@ public class CPU {
     }
     
     public void reg_dump() {
+        int reg = 0;
         for(int i = I; i < I+X; i++) {
-            memory[i] = V[i];
+            memory[i] = V[reg];
+            reg++;
         }
     }
     
     public void reg_load() {
+        int reg = 0;
         for(int i = I; i < I+X; i++) {
-            V[i] = memory[i];
+            V[reg] = memory[i];
+            reg++;
         }
     }
     
@@ -308,7 +336,8 @@ public class CPU {
         try {
             BufferedInputStream game = new BufferedInputStream(new FileInputStream(gamepath));
             
-            int addr = 0;
+            int addr = 0x200;
+            PC = 0x200;
             
             try {
                 while((memory[addr] = game.read()) != -1) {
@@ -324,14 +353,18 @@ public class CPU {
     }
     
     public void fetch() {
-        opcode = (memory[PC] << 8) & memory[PC+1];
+        opcode = (memory[PC] << 8) | memory[PC+1];
         PC += 2;
+        X = (char)((opcode & 0xF00) >>> 8);
+        Y = (char)((opcode & 0xF0) >>> 4);
+        
+        //System.out.println(Integer.toHexString(opcode));
     }
     
     public void decode() {
-        switch((opcode & 0x80) >> 7) {
+        switch((opcode & 0xF000) >> 12) {
             case 0:
-                switch(opcode & 7) {
+                switch(opcode & 0xFF) {
                     case(0x0E0):
                         disp_clear();
                         break;
@@ -339,14 +372,14 @@ public class CPU {
                         ret();
                         break;
                     default:
-                        call(opcode & 7);
+                        call(opcode & 0xFFF);
                 }
                 break;
             case 1:
-                jump(opcode & 7);
+                jump(opcode & 0xFFF);
                 break;
             case 2:
-                call(opcode & 7);
+                call(opcode & 0xFFF);
                 break;
             case 3:
                 skip_next_if((char)3);
@@ -364,7 +397,7 @@ public class CPU {
                 add_Vx_const();
                 break;
             case 8:
-                switch(opcode & 1) {
+                switch(opcode & 0xF) {
                     case 0:
                         assign_Vx_Vy();
                         break;
@@ -407,7 +440,7 @@ public class CPU {
                 rand();
                 break;
             case 0xD:
-                //draw
+                draw();
                 break;
             case 0xE:
                 switch(opcode & 0xFF) {
@@ -451,7 +484,6 @@ public class CPU {
                 }
         }
         
-        PC += 2;
         pressed_key.forEach((k,v) -> v = false);
     }
     
@@ -462,6 +494,42 @@ public class CPU {
             update_key = chip8_key;
         }
     }
+    
+    public void emulate_cycle() {
+        fetch();
+        decode();
+    }
+    
+    public int[] get_exp_scr_size() {
+        return new int[] {EXP_SCR_WIDTH,EXP_SCR_HEIGHT};
+    }
+    
+    public int[] get_scr_size() {
+        return new int[] {SCR_WIDTH,SCR_HEIGHT};
+    }
+    
+    public void set_gfx(int[] gfx) {
+        this.gfx = gfx;
+    }
+    
+    public void set_screen(Screen screen) {
+        this.screen = screen;
+    }
+    
+    public void run() {
+        while(true) {
+            emulate_cycle();
+            try {
+                Thread.sleep(2L);
+            }
+            catch(Exception e) {}
+        }
+    }
+    
+    public void link_screen_gfx() {
+        screen.set_gfx(gfx);
+    }
+    
     
     //Methods for testing
     public int get_opcode() {

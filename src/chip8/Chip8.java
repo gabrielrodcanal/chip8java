@@ -16,15 +16,21 @@ public class Chip8 {
      */
     public static void main(String[] args) {
         CPU cpu = new CPU();
+        
+        Screen screen = new Screen(cpu);
+        
+        cpu.powerup("roms/TETRIS");
+        cpu.set_screen(screen);
+        cpu.link_screen_gfx();
+        
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                Screen screen = new Screen(cpu);
                 screen.setVisible(true);
+                
             }
-        });
+        });  
         
-        cpu.powerup("MAZE");
-    }
-    
+        cpu.run();
+    }    
 }
