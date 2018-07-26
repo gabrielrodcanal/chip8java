@@ -19,7 +19,7 @@ public class Chip8 {
         
         Screen screen = new Screen(cpu);
         
-        cpu.powerup("roms/TETRIS");
+        cpu.powerup("roms/PONG2");
         cpu.set_screen(screen);
         cpu.link_screen_gfx();
         

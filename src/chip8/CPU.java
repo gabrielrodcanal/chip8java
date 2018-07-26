@@ -15,7 +15,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Timer;
-import java.lang.Runnable;
+import java.util.concurrent.Semaphore;
 
 /**
  *
@@ -36,15 +36,22 @@ public class CPU implements Runnable {
     private int V[];
     private int I;
     private Deque<Integer> stack;
-    //private int delay_timer;
     private CountDownTimer delay_timer;
-    private int sound_timer;
+    private CountDownTimer sound_timer;
     private int[] gfx;
     private Map<String,Integer> key_map; //real keys to chip8 keys
     private Map<Integer,Boolean> pressed_key;   //chip8 keys to boolean
     private int update_key; //used in set_Vx_key
     private Timer clock;
     private Screen screen;
+    private int key_tolerance;
+    private int key_ticks;
+    
+    private boolean is_pressed_key;
+    private boolean sound;
+    private Thread buzzer;
+    
+    private Semaphore semph;
     
     private char X, Y;
     
@@ -52,29 +59,39 @@ public class CPU implements Runnable {
         memory = new int[4096];
         V = new int[16];
         stack = new ArrayDeque();
-        //gfx = new char[(SCR_WIDTH + SPRT_WIDTH)*(SCR_HEIGHT + SPRT_HEIGHT)];
         gfx = new int[(SCR_WIDTH + SPRT_WIDTH)*(SCR_HEIGHT + SPRT_HEIGHT)];
         key_map = new HashMap<String,Integer>();
         pressed_key = new HashMap<Integer,Boolean>();
         delay_timer = new CountDownTimer();
+        sound_timer = new CountDownTimer();
         clock = new Timer();
+        key_ticks = 0;
+        key_tolerance = 100;
+        sound = false;
+        semph = new Semaphore(1);
+        try {
+            semph.acquire();
+        }
+        catch(Exception e) {}
+        buzzer = new Thread(new ConcurrentBuzzer(14400,Buzzer.SQUARE,0.5f,200));
+        buzzer.start();
         
         key_map.put("1",1);
         key_map.put("2",2);
         key_map.put("3",3);
         key_map.put("4",0xC);
-        key_map.put("Q",4);
-        key_map.put("W",5);
-        key_map.put("E",6);
-        key_map.put("R",0xD);
-        key_map.put("A",7);
-        key_map.put("S",8);
-        key_map.put("D",9);
-        key_map.put("F",0xE);
-        key_map.put("Z",0xA);
-        key_map.put("X",0);
-        key_map.put("C",0xB);
-        key_map.put("V",0xF);
+        key_map.put("q",4);
+        key_map.put("w",5);
+        key_map.put("e",6);
+        key_map.put("r",0xD);
+        key_map.put("a",7);
+        key_map.put("s",8);
+        key_map.put("d",9);
+        key_map.put("f",0xE);
+        key_map.put("z",0xA);
+        key_map.put("x",0);
+        key_map.put("c",0xB);
+        key_map.put("v",0xF);
         
         pressed_key.put(1,false);
         pressed_key.put(2,false);
@@ -268,9 +285,11 @@ public class CPU implements Runnable {
         //right zone
         /*
         for(row = 0; row < SCR_HEIGHT; row++) {
-            for(int j = 0; j < 8; j++) {
-                gfx[row * SCR_WIDTH + j] |= gfx[row * SCR_WIDTH + SCR_WIDTH + j];
-            }            
+            for(int j = 0; j < SPRT_WIDTH; j++) {
+                if(gfx[row * EXP_SCR_WIDTH + j] == 1 && gfx[(row+1) * EXP_SCR_WIDTH - (8+j)] == 1)
+                    V[0xF] = 1;
+                gfx[row * EXP_SCR_WIDTH + j] |= gfx[(row+1) * EXP_SCR_WIDTH - (8+j)];
+            }
         }
         */
         
@@ -278,10 +297,13 @@ public class CPU implements Runnable {
         /*
         for(row = 0; row < SPRT_HEIGHT; row++) {
             for(int j = 0; j < SCR_WIDTH; j++) {
-                gfx[row * SCR_WIDTH + j] |= gfx[(SCR_HEIGHT + row) * SCR_WIDTH + j];
+                if(gfx[row * EXP_SCR_WIDTH + j] == 1 && gfx[EXP_SCR_WIDTH * (SCR_HEIGHT + row) + j] == 1)
+                    V[0xF] = 1;
+                gfx[row * EXP_SCR_WIDTH + j] ^= gfx[EXP_SCR_WIDTH * (SCR_HEIGHT + row) + j];
             }
         }
         */
+        
         screen.paint_screen();
     }
     
@@ -290,8 +312,15 @@ public class CPU implements Runnable {
     }
     
     public void set_Vx_key() {
-        if(pressed_key.keySet().contains(update_key))   //does update_key belong to the chip-8 keyboard?
+        is_pressed_key = false;
+        while(!is_pressed_key) {}
+        
+        if(pressed_key.keySet().contains(update_key))    //does update_key belong to the chip-8 keyboard?
             V[X] = update_key;
+    }
+    
+    public void set_pressed() {
+        is_pressed_key = true;
     }
     
     public void set_delay_Vx() {
@@ -299,7 +328,10 @@ public class CPU implements Runnable {
     }
     
     public void set_sound_Vx() {
-        sound_timer = V[X];
+        if(V[X] > 0) {
+            sound = true;
+            sound_timer.setTime((long)V[X]);
+        }
     }
     
     public void add_I_Vx() {
@@ -357,8 +389,6 @@ public class CPU implements Runnable {
         PC += 2;
         X = (char)((opcode & 0xF00) >>> 8);
         Y = (char)((opcode & 0xF0) >>> 4);
-        
-        //System.out.println(Integer.toHexString(opcode));
     }
     
     public void decode() {
@@ -484,20 +514,30 @@ public class CPU implements Runnable {
                 }
         }
         
-        pressed_key.forEach((k,v) -> v = false);
+        key_ticks = ++key_ticks % key_tolerance;
+        if(key_ticks == 0)
+            pressed_key.replaceAll((k,v) -> v = false);
     }
     
     public void update_pressed_key(String key) {
-        int chip8_key = key_map.get(key);
-        if(pressed_key.keySet().contains(chip8_key)) {  //does the key belong to the chip 8 keyboard?
-            pressed_key.put(key_map.get(key),true);
-            update_key = chip8_key;
+        try {
+            int chip8_key = key_map.get(key);
+            if(pressed_key.keySet().contains(chip8_key)) {  //does the key belong to the chip 8 keyboard?
+                pressed_key.put(key_map.get(key),true);
+                update_key = chip8_key;
+            }
         }
+        catch(java.lang.NullPointerException e) {}
     }
     
     public void emulate_cycle() {
         fetch();
         decode();
+        
+        if(sound && sound_timer.getTime() == 0) {
+            semph.release();
+            sound = false;
+        }
     }
     
     public int[] get_exp_scr_size() {
@@ -529,7 +569,6 @@ public class CPU implements Runnable {
     public void link_screen_gfx() {
         screen.set_gfx(gfx);
     }
-    
     
     //Methods for testing
     public int get_opcode() {
@@ -574,5 +613,22 @@ public class CPU implements Runnable {
     
     public int get_I() {
         return I;
+    }
+    
+    private class ConcurrentBuzzer extends Buzzer implements Runnable {        
+        public ConcurrentBuzzer(int sample_rate, char wave_type, float seconds, double frequency) {
+            super(sample_rate, wave_type, seconds, frequency);
+        }
+        
+        @Override
+        public void run() {
+            while(true) {
+                try {
+                    semph.acquire();
+                    play();
+                }
+                catch(Exception e) {}
+            }
+        }
     }
 }

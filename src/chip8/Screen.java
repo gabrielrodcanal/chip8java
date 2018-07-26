@@ -47,6 +47,7 @@ public class Screen extends javax.swing.JFrame {
         pixels = new int[big_width * big_height];
         screen_buffer = new BufferedImage(screen_size[0]*magnify_factor,screen_size[1]*magnify_factor,BufferedImage.TYPE_BYTE_BINARY);
         screenLabel.setIcon(new ImageIcon(screen_buffer));
+        setSize(new java.awt.Dimension(big_width, big_height));
     }
     
     public void set_gfx(int[] gfx) {
