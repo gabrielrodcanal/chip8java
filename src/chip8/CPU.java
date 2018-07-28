@@ -59,7 +59,7 @@ public class CPU implements Runnable {
         memory = new int[4096];
         V = new int[16];
         stack = new ArrayDeque();
-        gfx = new int[(SCR_WIDTH + SPRT_WIDTH)*(SCR_HEIGHT + SPRT_HEIGHT)];
+        gfx = new int[SCR_WIDTH * SCR_HEIGHT];
         key_map = new HashMap<String,Integer>();
         pressed_key = new HashMap<Integer,Boolean>();
         delay_timer = new CountDownTimer();
@@ -129,8 +129,8 @@ public class CPU implements Runnable {
             0xF0,0x80,0xF0,0x80,0x80            
         };
         
-        for(int i = 0; i < 80; i++)
-            memory[i] = sprites[i];
+        for(int i = 0x50; i < 0x50+80; i++)
+            memory[i] = sprites[i-80];
     }
     
     public void call(int addr) {
@@ -232,10 +232,10 @@ public class CPU implements Runnable {
                 s1 = s2 = 0;
         }
         
-        if(s1 > s2)
-            V[0xF] = 1;
-        else
+        if(s1 < s2)
             V[0xF] = 0;
+        else
+            V[0xF] = 1;
         
         if(mode == 0)
             V[X] = (V[X] - V[Y]) & 0xFF;
@@ -244,8 +244,8 @@ public class CPU implements Runnable {
     }
     
     public void shift_left() {
-        V[0xF] = V[X] & 0x80;
-        V[X] = V[Y] << 1;
+        V[0xF] = (V[X] & 0x80) >>> 7;
+        V[X] = (V[Y] << 1) & 0xFF;
     }
     
     public void set_I() {
@@ -263,46 +263,30 @@ public class CPU implements Runnable {
         int row = 0;
         int mask;
         int mem_val,gfx_pos;
+        int x_cord, y_cord;
         
         for(int i = I; i < I + n; i++) {
             mask = 0x80;
             
-            gfx_pos = V[X] + EXP_SCR_WIDTH * (V[Y] + row);
             for(int j = 0; j < 8; j++) {
-                gfx_pos += 1;
+                x_cord = (V[X] + j) % SCR_WIDTH;
+                y_cord = (V[Y] + row)% SCR_HEIGHT;
+                gfx_pos = x_cord + SCR_WIDTH * y_cord;
+                
                 mem_val = (memory[i] & mask) >>> 7-j;
                 
-                if(gfx[gfx_pos] == 1 && mem_val == 1)
-                    V[0xF] = 1;
-                
-                gfx[gfx_pos] ^= mem_val;
+                if(mem_val == 1) {
+                    //collision detection
+                    if(gfx[gfx_pos] == 1 && mem_val == 1)
+                        V[0xF] = 1;
+
+                    gfx[gfx_pos] ^= mem_val;
+                }
                 mask >>>= 1;
             }
+            
             row++;
         }
-        
-        //relocation of out of bounds pixels
-        //right zone
-        /*
-        for(row = 0; row < SCR_HEIGHT; row++) {
-            for(int j = 0; j < SPRT_WIDTH; j++) {
-                if(gfx[row * EXP_SCR_WIDTH + j] == 1 && gfx[(row+1) * EXP_SCR_WIDTH - (8+j)] == 1)
-                    V[0xF] = 1;
-                gfx[row * EXP_SCR_WIDTH + j] |= gfx[(row+1) * EXP_SCR_WIDTH - (8+j)];
-            }
-        }
-        */
-        
-        //down zone
-        /*
-        for(row = 0; row < SPRT_HEIGHT; row++) {
-            for(int j = 0; j < SCR_WIDTH; j++) {
-                if(gfx[row * EXP_SCR_WIDTH + j] == 1 && gfx[EXP_SCR_WIDTH * (SCR_HEIGHT + row) + j] == 1)
-                    V[0xF] = 1;
-                gfx[row * EXP_SCR_WIDTH + j] ^= gfx[EXP_SCR_WIDTH * (SCR_HEIGHT + row) + j];
-            }
-        }
-        */
         
         screen.paint_screen();
     }
@@ -314,7 +298,7 @@ public class CPU implements Runnable {
     public void set_Vx_key() {
         is_pressed_key = false;
         while(!is_pressed_key) {}
-        
+                
         if(pressed_key.keySet().contains(update_key))    //does update_key belong to the chip-8 keyboard?
             V[X] = update_key;
     }
@@ -335,11 +319,15 @@ public class CPU implements Runnable {
     }
     
     public void add_I_Vx() {
+        if(I + V[X] > 0xFFF)
+            V[0xF] = 1;
+        else
+            V[0xF] = 0;
         I += V[X];
     }
     
     public void set_I_sprite_addr() {
-        I = V[X] * 5;
+        I = V[X] * 5 + 80;
     }
     
     public void set_bcd_Vx() {
@@ -350,7 +338,7 @@ public class CPU implements Runnable {
     
     public void reg_dump() {
         int reg = 0;
-        for(int i = I; i < I+X; i++) {
+        for(int i = I; i <= I+X; i++) {
             memory[i] = V[reg];
             reg++;
         }
@@ -358,7 +346,7 @@ public class CPU implements Runnable {
     
     public void reg_load() {
         int reg = 0;
-        for(int i = I; i < I+X; i++) {
+        for(int i = I; i <= I+X; i++) {
             V[reg] = memory[i];
             reg++;
         }
@@ -389,6 +377,8 @@ public class CPU implements Runnable {
         PC += 2;
         X = (char)((opcode & 0xF00) >>> 8);
         Y = (char)((opcode & 0xF0) >>> 4);
+        //if((opcode & 0xF000) == 0xD000)
+            System.out.println(Integer.toHexString(opcode) + " V[X] = " + V[X] + " V[Y] = " + V[Y]);
     }
     
     public void decode() {
@@ -497,7 +487,7 @@ public class CPU implements Runnable {
                         set_sound_Vx();
                         break;
                     case 0x1E:
-                        this.add_I_Vx();
+                        add_I_Vx();
                         break;
                     case 0x29:
                         set_I_sprite_addr();
@@ -560,9 +550,10 @@ public class CPU implements Runnable {
         while(true) {
             emulate_cycle();
             try {
-                Thread.sleep(2L);
+                Thread.sleep(2);
             }
-            catch(Exception e) {}
+            catch(Exception e) {
+            }
         }
     }
     

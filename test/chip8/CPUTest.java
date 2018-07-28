@@ -117,6 +117,11 @@ public class CPUTest {
         for(int i = 0; i < 0xF; i++) {
             assertEquals(instance.getMem(i),i+1);
         }
+        
+        instance.set_V((char)0,234);
+        instance.set_X((char)0);
+        instance.reg_dump();
+        assertEquals(instance.getMem(0),234);
     }
 
     /**
