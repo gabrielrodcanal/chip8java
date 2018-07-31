@@ -28,10 +28,10 @@ public class CPU implements Runnable {
     private final int SPRT_HEIGHT = 15;
     private final int EXP_SCR_WIDTH = SCR_WIDTH + SPRT_WIDTH;
     private final int EXP_SCR_HEIGHT = SCR_HEIGHT + SPRT_HEIGHT;
+    private final boolean shift_quirk = false;
     
     private int opcode;
     private int PC;
-    private int SP;
     private int memory[];
     private int V[];
     private int I;
@@ -42,7 +42,6 @@ public class CPU implements Runnable {
     private Map<String,Integer> key_map; //real keys to chip8 keys
     private Map<Integer,Boolean> pressed_key;   //chip8 keys to boolean
     private int update_key; //used in set_Vx_key
-    private Timer clock;
     private Screen screen;
     private int key_tolerance;
     private int key_ticks;
@@ -64,15 +63,16 @@ public class CPU implements Runnable {
         pressed_key = new HashMap<Integer,Boolean>();
         delay_timer = new CountDownTimer();
         sound_timer = new CountDownTimer();
-        clock = new Timer();
         key_ticks = 0;
         key_tolerance = 100;
         sound = false;
+        
         semph = new Semaphore(1);
         try {
             semph.acquire();
         }
         catch(Exception e) {}
+        
         buzzer = new Thread(new ConcurrentBuzzer(14400,Buzzer.SQUARE,0.5f,200));
         buzzer.start();
         
@@ -213,8 +213,14 @@ public class CPU implements Runnable {
     }
     
     public void shift_right() {
-        V[0xF] = V[Y] & 1;
-        V[X] = V[Y] >>> 1;
+        if(!shift_quirk) {
+            V[0xF] = V[Y] & 1;
+            V[X] = V[Y] >>> 1;
+        }
+        else {
+            V[0xF] = V[X] & 1;
+            V[X] >>>= 1;
+        }
     }
     
     public void sub(int mode) {
@@ -244,8 +250,14 @@ public class CPU implements Runnable {
     }
     
     public void shift_left() {
-        V[0xF] = (V[X] & 0x80) >>> 7;
-        V[X] = (V[Y] << 1) & 0xFF;
+        if(!shift_quirk) {
+            V[0xF] = (V[Y] & 0x80) >>> 7;
+            V[X] = (V[Y] << 1) & 0xFF;
+        }
+        else {
+            V[0xF] = (V[X] & 0x80) >>> 7;
+            V[X] = (V[X] << 1) & 0xFF;
+        }
     }
     
     public void set_I() {
@@ -377,8 +389,6 @@ public class CPU implements Runnable {
         PC += 2;
         X = (char)((opcode & 0xF00) >>> 8);
         Y = (char)((opcode & 0xF0) >>> 4);
-        //if((opcode & 0xF000) == 0xD000)
-            System.out.println(Integer.toHexString(opcode) + " V[X] = " + V[X] + " V[Y] = " + V[Y]);
     }
     
     public void decode() {
@@ -553,6 +563,7 @@ public class CPU implements Runnable {
                 Thread.sleep(2);
             }
             catch(Exception e) {
+                e.printStackTrace();
             }
         }
     }

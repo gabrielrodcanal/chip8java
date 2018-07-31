@@ -58,7 +58,6 @@ public class Screen extends javax.swing.JFrame {
     
     public void paint_screen() {       
         magnify_pixels();
-        System.out.println();
         screen_buffer.setRGB(0, 0, big_width, big_height, pixels, 0, big_width);
         screenLabel.repaint();
     }

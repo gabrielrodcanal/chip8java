@@ -27,10 +27,10 @@ public class Chip8 {
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
                 screen.setVisible(true);
-                
             }
-        });  
+        });
         
-        cpu.run();
+        Thread cpu_thread = new Thread(cpu);
+        cpu_thread.start();
     }    
 }
