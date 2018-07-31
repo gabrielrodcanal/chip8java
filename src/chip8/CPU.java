@@ -28,7 +28,7 @@ public class CPU implements Runnable {
     private final int SPRT_HEIGHT = 15;
     private final int EXP_SCR_WIDTH = SCR_WIDTH + SPRT_WIDTH;
     private final int EXP_SCR_HEIGHT = SCR_HEIGHT + SPRT_HEIGHT;
-    private final boolean shift_quirk = false;
+    private final boolean shift_quirk = true;
     
     private int opcode;
     private int PC;
@@ -139,8 +139,8 @@ public class CPU implements Runnable {
     }
     
     public void disp_clear() {
-        for(int pixel : gfx) {
-            pixel = 0;
+        for(int i = 0; i < SCR_WIDTH * SCR_HEIGHT; i++) {
+            gfx[i] = 0;
         }
     }
     
