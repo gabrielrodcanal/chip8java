@@ -31,7 +31,7 @@ public class Buzzer {
      * @param seconds number of seconds the sound will last.
      * @param frequency desired frequency of the wave.
      */
-    public Buzzer(int sample_rate, char wave_type, float seconds, double frequency) {
+    public Buzzer(int sample_rate, int wave_type, float seconds, double frequency) {
         af = new AudioFormat(sample_rate, 8, 1, true, true);
         this.sample_rate = sample_rate;
         
@@ -65,7 +65,7 @@ public class Buzzer {
         line.close();
     }
     
-    private byte[] get_wave(char type, float seconds, double frequency) {
+    private byte[] get_wave(int type, float seconds, double frequency) {
         byte[] data = new byte[Math.round(seconds * sample_rate)];
         double sampling_interval = (double) (sample_rate / frequency);  //samples per period
         double tau = 1/frequency;   //wave period

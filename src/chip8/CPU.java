@@ -56,7 +56,7 @@ public class CPU implements Runnable {
     
     private char X, Y;
     
-    public CPU(boolean shift_quirk, boolean load_store_quirk) {
+    public CPU(boolean shift_quirk, boolean load_store_quirk, int wave_type) {
         memory = new int[4096];
         V = new int[16];
         stack = new ArrayDeque();
@@ -78,7 +78,7 @@ public class CPU implements Runnable {
         }
         catch(Exception e) {}
         
-        buzzer = new Thread(new ConcurrentBuzzer(14400,Buzzer.SQUARE,0.5f,200));
+        buzzer = new Thread(new ConcurrentBuzzer(14400,wave_type,0.5f,200));
         buzzer.start();
         
         key_map.put("1",1);
@@ -637,7 +637,7 @@ public class CPU implements Runnable {
     }
     
     private class ConcurrentBuzzer extends Buzzer implements Runnable {        
-        public ConcurrentBuzzer(int sample_rate, char wave_type, float seconds, double frequency) {
+        public ConcurrentBuzzer(int sample_rate, int wave_type, float seconds, double frequency) {
             super(sample_rate, wave_type, seconds, frequency);
         }
         
