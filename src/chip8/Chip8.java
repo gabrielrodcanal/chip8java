@@ -10,16 +10,20 @@ package chip8;
  * @author gabriel
  */
 public class Chip8 {
+    private static final int GAME_ARG = 0;
+    private static final int SHIFT_QUIRK_ARG = 1;
+    private static final int LOAD_STORE_QUIRK_ARG = 2;
+    private static final int MAGNIFY_FACTOR_ARG = 3;
 
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        CPU cpu = new CPU();
+        CPU cpu = new CPU(Boolean.valueOf(args[SHIFT_QUIRK_ARG]),Boolean.valueOf(args[LOAD_STORE_QUIRK_ARG]));
         
-        Screen screen = new Screen(cpu);
+        Screen screen = new Screen(cpu,Integer.parseInt(args[MAGNIFY_FACTOR_ARG]));
         
-        cpu.powerup(args[0]);
+        cpu.powerup(args[GAME_ARG]);
         cpu.set_screen(screen);
         cpu.link_screen_gfx();
         

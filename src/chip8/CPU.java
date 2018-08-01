@@ -29,7 +29,8 @@ public class CPU implements Runnable {
     private final int EXP_SCR_HEIGHT = SCR_HEIGHT + SPRT_HEIGHT;
     private int FREQUENCY = 500;
     private int CYCLE_PERIOD = (int)(1/(float)FREQUENCY * 1000);
-    private final boolean shift_quirk = true;
+    private boolean shift_quirk;
+    private boolean load_store_quirk;
     
     private int opcode;
     private int PC;
@@ -55,7 +56,7 @@ public class CPU implements Runnable {
     
     private char X, Y;
     
-    public CPU() {
+    public CPU(boolean shift_quirk, boolean load_store_quirk) {
         memory = new int[4096];
         V = new int[16];
         stack = new ArrayDeque();
@@ -68,6 +69,8 @@ public class CPU implements Runnable {
         key_tolerance = 100;
         sound = false;
         is_pressed_key = true;
+        this.shift_quirk = shift_quirk;
+        this.load_store_quirk = load_store_quirk;
         
         semph = new Semaphore(1);
         try {
@@ -366,6 +369,8 @@ public class CPU implements Runnable {
             memory[i] = V[reg];
             reg++;
         }
+        if(!load_store_quirk)
+            I += X;
     }
     
     public void reg_load() {
@@ -374,6 +379,8 @@ public class CPU implements Runnable {
             V[reg] = memory[i];
             reg++;
         }
+        if(!load_store_quirk)
+            I += X;
     }
     
     public void powerup(String gamepath) {

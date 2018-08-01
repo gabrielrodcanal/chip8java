@@ -31,7 +31,7 @@ public class Screen extends javax.swing.JFrame {
     /**
      * Creates new form ScreenFrame
      */
-    public Screen(CPU cpu) {   
+    public Screen(CPU cpu, int magnify_factor) {   
         initComponents();
         
         this.cpu = cpu;
@@ -41,7 +41,7 @@ public class Screen extends javax.swing.JFrame {
         
         trans_colour = new int[] {black,white};
         screen_size = cpu.get_scr_size();
-        magnify_factor = 5;
+        this.magnify_factor = magnify_factor;
         big_width = magnify_factor * screen_size[0];
         big_height = magnify_factor * screen_size[1];
         pixels = new int[big_width * big_height];
