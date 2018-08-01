@@ -14,7 +14,6 @@ import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Timer;
 import java.util.concurrent.Semaphore;
 
 /**
@@ -28,6 +27,8 @@ public class CPU implements Runnable {
     private final int SPRT_HEIGHT = 15;
     private final int EXP_SCR_WIDTH = SCR_WIDTH + SPRT_WIDTH;
     private final int EXP_SCR_HEIGHT = SCR_HEIGHT + SPRT_HEIGHT;
+    private int FREQUENCY = 500;
+    private int CYCLE_PERIOD = (int)(1/(float)FREQUENCY * 1000);
     private final boolean shift_quirk = true;
     
     private int opcode;
@@ -66,6 +67,7 @@ public class CPU implements Runnable {
         key_ticks = 0;
         key_tolerance = 100;
         sound = false;
+        is_pressed_key = true;
         
         semph = new Semaphore(1);
         try {
@@ -282,6 +284,7 @@ public class CPU implements Runnable {
             
             for(int j = 0; j < 8; j++) {
                 x_cord = (V[X] + j) % SCR_WIDTH;
+                y_cord = (V[Y] + row) % SCR_HEIGHT;
                 y_cord = (V[Y] + row)% SCR_HEIGHT;
                 gfx_pos = x_cord + SCR_WIDTH * y_cord;
                 
@@ -289,7 +292,7 @@ public class CPU implements Runnable {
                 
                 if(mem_val == 1) {
                     //collision detection
-                    if(gfx[gfx_pos] == 1 && mem_val == 1)
+                    if(gfx[gfx_pos] == 1)
                         V[0xF] = 1;
 
                     gfx[gfx_pos] ^= mem_val;
@@ -307,16 +310,25 @@ public class CPU implements Runnable {
         V[X] = (int)delay_timer.getTime();
     }
     
-    public void set_Vx_key() {
+    public synchronized void set_Vx_key() {
         is_pressed_key = false;
-        while(!is_pressed_key) {}
+        try {
+            wait();
+        }
+        catch(Exception e) {System.out.println("Excepción");}
                 
         if(pressed_key.keySet().contains(update_key))    //does update_key belong to the chip-8 keyboard?
             V[X] = update_key;
+        else
+            set_Vx_key();
     }
     
     public void set_pressed() {
         is_pressed_key = true;
+    }
+    
+    public boolean is_pressed() {
+        return is_pressed_key;
     }
     
     public void set_delay_Vx() {
@@ -560,7 +572,7 @@ public class CPU implements Runnable {
         while(true) {
             emulate_cycle();
             try {
-                Thread.sleep(2);
+                Thread.sleep(CYCLE_PERIOD);
             }
             catch(Exception e) {
                 e.printStackTrace();
@@ -627,6 +639,7 @@ public class CPU implements Runnable {
             while(true) {
                 try {
                     semph.acquire();
+                    cancel_play();
                     play();
                 }
                 catch(Exception e) {}

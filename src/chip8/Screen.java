@@ -68,6 +68,9 @@ public class Screen extends javax.swing.JFrame {
         int big_skip = magnify_factor * big_width;
         
         for(int gfx_pixel = 0; gfx_pixel < screen_size[0] * screen_size[1]; gfx_pixel++) {
+            if(gfx_pixel % screen_size[0] == 0 && gfx_pixel != 0)
+                big_row += 1;
+            
             starting_pixel = big_row * big_skip + magnify_factor * (gfx_pixel % screen_size[0]);
             
             for(row = 0; row < magnify_factor; row++) {
@@ -77,9 +80,6 @@ public class Screen extends javax.swing.JFrame {
 
                 starting_pixel += big_width;
             }
-            
-            if(gfx_pixel % screen_size[0] == 0 && gfx_pixel != 0)
-                big_row += 1;
         }
     }
     /**
@@ -117,6 +117,11 @@ public class Screen extends javax.swing.JFrame {
     private void formKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_formKeyPressed
         cpu.set_pressed();
         cpu.update_pressed_key(Character.toString(evt.getKeyChar()));
+        synchronized(cpu) {
+            if(!cpu.is_pressed())
+            cpu.notify();
+        }
+        cpu.set_pressed();
     }//GEN-LAST:event_formKeyPressed
 
 

@@ -50,7 +50,12 @@ public class Buzzer {
      */
     public void play() {
         line.write(data, 0, data.length);
-        line.drain();
+    }
+    
+    public void cancel_play() {
+        line.stop();
+        line.flush();
+        line.start();
     }
     
     /**
