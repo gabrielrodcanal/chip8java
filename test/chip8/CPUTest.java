@@ -43,7 +43,7 @@ public class CPUTest {
     @Test
     public void testAdd_Vx_Vy() {
         System.out.println("add_Vx_Vy");
-        CPU instance = new CPU();
+        CPU instance = new CPU(false,false,0);
         instance.set_X((char)0);
         instance.set_Y((char)1);
         instance.set_V((char)0,0xFF);
@@ -65,7 +65,7 @@ public class CPUTest {
     @Test
     public void testSub_Vx_Vy() {
         System.out.println("sub_Vx_Vy");
-        CPU instance = new CPU();
+        CPU instance = new CPU(false,false,0);
         instance.set_X((char)0);
         instance.set_Y((char)1);
         instance.set_V((char)0,0);
@@ -88,7 +88,7 @@ public class CPUTest {
     @Test
     public void testSet_bcd_Vx() {
         System.out.println("set_bcd_Vx");
-        CPU instance = new CPU();
+        CPU instance = new CPU(false,false,0);
         
         int I = instance.get_I();
         
@@ -107,7 +107,7 @@ public class CPUTest {
     @Test
     public void testReg_dump() {
         System.out.println("reg_dump");
-        CPU instance = new CPU();
+        CPU instance = new CPU(false,true,0);
         
         instance.set_X((char)0xF);
         for(int i = 0; i < 0xF; i++)
@@ -130,7 +130,7 @@ public class CPUTest {
     @Test
     public void testReg_load() {
         System.out.println("reg_load");
-        CPU instance = new CPU();
+        CPU instance = new CPU(false,false,0);
         
         instance.set_X((char)0xF);
         for(int i = 0; i < 0xF; i++)

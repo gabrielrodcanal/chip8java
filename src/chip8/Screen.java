@@ -56,29 +56,34 @@ public class Screen extends javax.swing.JFrame {
         this.gfx  = gfx;
     }
     
-    public void paint_screen() {       
-        magnify_pixels();
+    public void paint_screen(int x, int y, int n) {       
+        magnify_pixels(x, y, n);
         screen_buffer.setRGB(0, 0, big_width, big_height, pixels, 0, big_width);
         screenLabel.repaint();
     }
     
-    public void magnify_pixels() {
+    public void magnify_pixels(int x, int y, int n) {
         int starting_pixel, row;
-        int big_row = 0;
         int big_skip = magnify_factor * big_width;
+        int gfx_pixel;
+        int x_cord, y_cord;
         
-        for(int gfx_pixel = 0; gfx_pixel < screen_size[0] * screen_size[1]; gfx_pixel++) {
-            if(gfx_pixel % screen_size[0] == 0 && gfx_pixel != 0)
-                big_row += 1;
-            
-            starting_pixel = big_row * big_skip + magnify_factor * (gfx_pixel % screen_size[0]);
-            
-            for(row = 0; row < magnify_factor; row++) {
-                for(int i = 0; i < magnify_factor; i++) {
-                    pixels[starting_pixel + i] = trans_colour[gfx[gfx_pixel]];
-                }
+        for(int i = 0; i < n; i++) {
+            for(int j = 0; j < 8; j++) {
+                x_cord = (x + j) % screen_size[0];
+                y_cord = (y + i) % screen_size[1];
+                gfx_pixel = x_cord + screen_size[0] * y_cord;
+                
+                starting_pixel = y_cord * big_skip + magnify_factor * x_cord;
+                
+                //Magnify every pixel
+                for(row = 0; row < magnify_factor; row++) {
+                    for(int k = 0; k < magnify_factor; k++) {
+                        pixels[starting_pixel + k] = trans_colour[gfx[gfx_pixel]];
+                    }
 
-                starting_pixel += big_width;
+                    starting_pixel += big_width;
+                }
             }
         }
     }

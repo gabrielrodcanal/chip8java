@@ -288,7 +288,6 @@ public class CPU implements Runnable {
             for(int j = 0; j < 8; j++) {
                 x_cord = (V[X] + j) % SCR_WIDTH;
                 y_cord = (V[Y] + row) % SCR_HEIGHT;
-                y_cord = (V[Y] + row)% SCR_HEIGHT;
                 gfx_pos = x_cord + SCR_WIDTH * y_cord;
                 
                 mem_val = (memory[i] & mask) >>> 7-j;
@@ -306,7 +305,7 @@ public class CPU implements Runnable {
             row++;
         }
         
-        screen.paint_screen();
+        screen.paint_screen(V[X],V[Y],n);
     }
     
     public void set_Vx_delay() {
